@@ -4,13 +4,65 @@
 \usetikzlibrary{plotmarks}
 
 \pgfplotsset
-{enlargelimits=0.02, xlabel near ticks, ylabel near ticks,
- minor tick num=9, scaled x ticks=base 10:-3,
+{enlargelimits=0.03, xlabel near ticks, ylabel near ticks,
+ yticklabel style={/pgf/number format/fixed, /pgf/number format/precision=5},
+ minor tick num=9, scaled x ticks=base 10:-3, scaled y ticks=false,
  legend pos=north west, legend cell align=left,
  legend style={font=\small\tt}
 }
 
 \begin{document}
+
+\begin{figure}[p]
+ \centering
+ \begin{tikzpicture}
+  \begin{axis}
+   [width=.5\textwidth, height=8cm, line width=0.1mm,
+    only marks, mark options={black, fill=black!40!white, mark size=1.5},
+    cycle list={{mark=otimes*}, {mark=square}, {mark=square*}, {mark=o}, {mark=*}},
+    xlabel=size of input, ylabel=time (sec.)]
+   \input{ocaml.time.out}
+  \end{axis}
+ \end{tikzpicture}%
+ \begin{tikzpicture}
+  \begin{axis}
+   [width=.5\textwidth, height=8cm, line width=0.1mm,
+    only marks, mark options={black, fill=black!40!white, mark size=1.5},
+    cycle list={{mark=otimes*}, {mark=square}, {mark=square*}, {mark=o}, {mark=*}},
+    xlabel=size of input, ylabel=memory consumption (MB)]
+   \input{ocaml.mem.out}
+  \end{axis}
+ \end{tikzpicture}
+ \caption{Benchmark result of the sorting functions extracted to OCaml.}
+\end{figure}
+
+\begin{figure}[p]
+ \centering
+ \begin{tikzpicture}
+  \begin{axis}
+   [width=\textwidth, height=8cm, line width=0.1mm,
+    only marks, mark options={black, fill=black!40!white, mark size=1.5},
+    cycle list={{mark=diamond}, {mark=square}, {mark=square*}, {mark=o}, {mark=*}},
+    xlabel=size of input, ylabel=time (sec.)]
+   \input{haskell1.time.out}
+  \end{axis}
+ \end{tikzpicture}
+ \caption{Benchmark result of the sorting functions extracted to Haskell.}
+\end{figure}
+
+\begin{figure}[p]
+ \centering
+ \begin{tikzpicture}
+  \begin{axis}
+   [width=\textwidth, height=8cm, line width=0.1mm,
+    only marks, mark options={black, fill=black!40!white, mark size=1.5},
+    cycle list={{mark=diamond}, {mark=square}, {mark=square*}, {mark=o}, {mark=*}},
+    xlabel=size of input, ylabel=time (sec.)]
+   \input{haskell2.time.out}
+  \end{axis}
+ \end{tikzpicture}
+ \caption{Benchmark result of the sorting functions extracted to Haskell.}
+\end{figure}
 
 \begin{figure}[p]
  \centering
@@ -125,20 +177,6 @@
   \end{axis}
  \end{tikzpicture}
  \caption{Benchmark result of \texttt{sorted N.leb (\textit{sort} N.leb xs)} with \texttt{native\_compute}.}
-\end{figure}
-
-\begin{figure}[p]
- \centering
- \begin{tikzpicture}
-  \begin{axis}
-   [width=\textwidth, height=8cm, line width=0.1mm,
-    only marks, mark options={black, fill=black!40!white, mark size=1.5},
-    cycle list={{mark=otimes*}, {mark=square}, {mark=square*}, {mark=o}, {mark=*}},
-    xlabel=size of input, ylabel=time (sec.)]
-   \input{ocaml.time.out}
-  \end{axis}
- \end{tikzpicture}
- \caption{Benchmark result of the sorting functions extracted to OCaml.}
 \end{figure}
 
 \end{document}
