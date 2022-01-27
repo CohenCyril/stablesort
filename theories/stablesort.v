@@ -94,9 +94,6 @@ case: nilP (trace_nilp t); case: nilP => //; last by constructor.
 by move=> /[dup] ? -> /[dup] ? ->; constructor.
 Qed.
 
-Variant trace_sort sort s := TraceSort :
-  forall t, valid_trace t -> s = flatten_trace t -> sort s = sort_trace t ->
-            trace_sort sort s.
 
 End Traces.
 
@@ -110,6 +107,53 @@ Qed.
 Parametricity Translation
   (forall T : Type, rel T -> seq T -> seq T) as sort_ty_R.
 
+Parametricity Translation
+  (fun T Tr (leT : rel T) => seq T -> Tr) as trace_sort_ty_R.
+
+Section Relations.
+Variables (T : Type) (leT : rel T).
+Local Notation trace := (trace T).
+(* The relations *)
+Definition Rflat : trace -> _ -> Prop := eq \o (@flatten_trace _).
+Arguments Rflat t s /.
+Definition Rsort : trace -> _ -> Prop := eq \o sort_trace leT.
+Arguments Rsort t s /.
+
+Lemma leT_R (x1 x2 : T) (R1 : x1 = x2) (y1 y2 : T) (R2 : y1 = y2) :
+  bool_R (leT x1 y1) (leT x2 y2).
+Proof. by apply: bool_R_refl; congr leT. Qed.
+
+Definition merge_ b := if b then merge leT else
+  (fun s s' => rev (merge (fun x y => leT y x) (rev s') (rev s))).
+Arguments merge_ b /.
+Definition rev_ b := if b then id else (@rev T).
+Arguments rev_ b /.
+
+(* basic relations between branch_trace and cat/merge *)
+Definition Rcat b1 b2 (bR : bool_R b1 b2)
+    t1 s1 (e1 : Rflat t1 s1) t2 s2 (e2 : Rflat t2 s2) :
+  Rflat (branch_trace b1 t1 t2) (s1 ++ s2) := congr2 cat e1 e2.
+Definition Rmerge b1 b2 (bR : bool_R b1 b2)
+    t1 s1 (e1 : Rsort t1 s1) t2 s2 (e2 : Rsort t2 s2) :
+  Rsort (branch_trace b1 t1 t2) (merge_ b2 s1 s2).
+Proof. by case: bR; rewrite /= e1 e2. Qed.
+
+(* basic relations between branch_trace and cat/merge *)
+Definition Rflatlf b1 b2 (bR : bool_R b1 b2) s1 s1' (e1 : list_R eq s1 s1') :
+  Rflat (leaf_trace b1 s1) s1'.
+Proof. by rewrite (rel_map_map e1) map_id. Qed.
+Definition Rsortlf b1 b2 (bR : bool_R b1 b2) s1 s1' (e1 : list_R eq s1 s1') :
+  Rsort (leaf_trace b1 s1) (rev_ b2 s1').
+Proof. by case: bR; rewrite /= (rel_map_map e1) map_id. Qed.
+
+Record trace_sort (sort : seq T -> seq T) := TraceSort {
+  tsort : seq T -> trace;
+  _ : forall s, valid_trace leT (tsort s);
+  _ : trace_sort_ty_R Rflat leT_R tsort id;
+  _ : trace_sort_ty_R Rsort leT_R tsort sort;
+}.
+End Relations.
+
 Structure function := Pack {
   apply : forall T : Type, rel T -> seq T -> seq T;
   (* Binary parametricity                                                     *)
@@ -122,7 +166,7 @@ Structure function := Pack {
   (*       list_R T_R xs ys -> list_R T_R (apply leT1 xs) (apply leT2 ys);    *)
   _ : sort_ty_R apply apply;
   (* Characterization by traces *)
-  _ : forall (T : Type) (leT : rel T) (s : seq T), trace_sort leT (apply leT) s;
+  _ : forall (T : Type) (leT : rel T), trace_sort leT (apply leT);
 }.
 
 Module Exports.
@@ -339,23 +383,29 @@ End RevmergeAcc.
 Module Insertion.
 Section Insertion.
 
-Variables (T : Type) (leT : rel T).
-
-Definition sort := foldr (fun x => merge leT [:: x]) [::].
-
 Import StableSort.
 
-Lemma sortP s : trace_sort leT sort s.
+Definition sort T (leT : rel T) := foldr (fun x => merge leT [:: x]) [::].
+Parametricity sort.
+
+Definition tsort T Tr (leT : rel T) (br : bool -> Tr -> Tr -> Tr)
+    (lf : bool -> seq T -> Tr)
+  := foldr (fun x : T => br true (lf true [:: x])) (lf true [::]).
+Parametricity tsort.
+
+Variables (T : Type) (leT : rel T).
+
+Lemma tsort_cat : tsort leT (fun=> cat) (fun=> id) =1 id.
+Proof. by elim=> //= x s ->. Qed.
+
+Lemma sortP : trace_sort leT (sort leT).
 Proof.
-elim: s => [|x ? [t t_valid -> /= t_sortE]].
-  exact: TraceSort empty_trace _ _ _.
-apply: TraceSort (branch_trace true (leaf_trace true [:: x]) t) _ _ _ => //=.
-by rewrite t_sortE.
+exists (tsort leT branch_trace leaf_trace); first by elim.
+  by move=> ? ? /(tsort_R (leT_R leT) (@Rcat T) (@Rflatlf T)); rewrite tsort_cat.
+exact: (tsort_R (leT_R leT) (@Rmerge T leT) (@Rsortlf T leT)).
 Qed.
 
 End Insertion.
-
-Parametricity sort.
 
 Definition sort_stable := StableSort.Pack sort sort_R sortP.
 
@@ -591,9 +641,6 @@ Parametricity Translation (fun Tr => bool -> seq T -> Tr) as leaf_tyR.
 Parametricity Translation (fun Tr St => Tr -> St -> St) as push_tyR.
 Parametricity Translation (fun Tr St => Tr -> St -> Tr) as pop_tyR.
 
-Lemma leT_R (x1 x2 : T) (R1 : T_R x1 x2) (y1 y2 : T) (R2 : T_R y1 y2) :
-  bool_R (leT x1 y1) (leT x2 y2).
-Proof. by apply: bool_R_refl; congr leT. Qed.
 
 Lemma bpush_valid tr st : valid_trace leT tr -> all (valid_trace leT) st ->
   all (valid_trace leT) (bpush tr st).
